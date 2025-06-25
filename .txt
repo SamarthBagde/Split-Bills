@@ -1,0 +1,14 @@
+Group : 
+| Route                   | Method           | Description                                                             |
+| ----------------------- | ---------------- | ----------------------------------------------------------------------- |
+| `/groups`               | `GET`            | 📋 Get all groups a user belongs to (pass `uid` as query param or auth) |                                |
+| `/groups/:gid`          | `PUT` or `PATCH` | ✏️ Edit group name (optional)                                           |
+| `/groups/:gid`          | `DELETE`         | 🗑️ Delete group (and maybe cascade deletes)                            |
+
+Group optional : 
+
+| Route                     | Method   | Description                                 |
+| ------------------------- | -------- | ------------------------------------------- |
+| `/groups/:gid/summary`    | `GET`    | 📊 Show total spent, balance per user, etc. |
+| `/groups/:gid/settle-up`  | `POST`   | 💵 Settle balances between users            |
+| `/groups/:gid/users/:uid` | `DELETE` | ➖ Remove user from group                    |

@@ -1,0 +1,15 @@
+# Backend
+Backend/node_modules/
+Backend/.env
+
+Frontend/node_modules
+Frontend/.env
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+
+# Editor folders
+.vscode/
