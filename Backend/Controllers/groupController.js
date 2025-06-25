@@ -1,5 +1,12 @@
+import sequelize from "../DB/dbcConnection.js";
 import { asyncHandler } from "../Middlerwares/asyncHandler.js";
-import { groupMembers, groups, users, expenses } from "../Model/index.js";
+import {
+  groupMembers,
+  groups,
+  users,
+  expenses,
+  expenseSplit,
+} from "../Model/index.js";
 import { AppError } from "../Utils/appError.js";
 
 export const createGroup = asyncHandler(async (req, res, next) => {
@@ -123,4 +130,48 @@ export const getExpensesOfGroup = asyncHandler(async (req, res, next) => {
       expenses: groupExpenses,
     },
   });
+});
+
+export const deleteGroup = asyncHandler(async (req, res, next) => {
+  const { group_id } = req.params;
+
+  const transaction = await sequelize.transaction();
+
+  try {
+    const group = await groups.findByPk(group_id, { transaction });
+    if (!group) {
+      await transaction.rollback();
+      return next(new AppError("No group found with provided ID", 400));
+    }
+
+    await groupMembers.destroy({ where: { group_id }, transaction });
+
+    const expensesData = await expenses.findAll({
+      where: { group_id },
+      transaction,
+    });
+    const expensesIds = expensesData.map((e) => e.expense_id);
+
+    if (expensesIds.length > 0) {
+      await expenseSplit.destroy({
+        where: { expense_id: expensesIds },
+        transaction,
+      });
+    }
+
+    await expenses.destroy({ where: { group_id }, transaction });
+
+    await group.destroy({ transaction }); // directly deleteing instance
+
+    await transaction.commit();
+
+    res.status(204).json({
+      status: "succes",
+      data: null,
+    });
+  } catch (error) {
+    await transaction.rollback();
+    console.error("Error deleting group:", error.message);
+    return next(new AppError("Failed to delete group", 500));
+  }
 });
