@@ -4,19 +4,19 @@ import sequelize from "../DB/dbcConnection.js";
 const groupMembers = sequelize.define(
   "groupMembers",
   {
-    id: {
+    groupMembersId: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
-    group_id: {
+    groupId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       validate: {
         notEmpty: true,
       },
     },
-    user_id: {
+    userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       validate: {

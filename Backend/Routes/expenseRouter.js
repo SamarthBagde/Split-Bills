@@ -6,13 +6,14 @@ import {
   getExpenses,
   updateExpense,
 } from "../Controllers/expenseController.js";
+import { protect } from "../Controllers/authController.js";
 
 const expenseRouter = express.Router();
 
-expenseRouter.post("/", addExpense);
-expenseRouter.get("/", getExpenses);
-expenseRouter.get("/:expense_id", getExpense);
-expenseRouter.patch("/:expense_id", updateExpense);
-expenseRouter.delete("/:expense_id", deleteExpense);
+expenseRouter.post("/", protect, addExpense);
+expenseRouter.get("/", protect, getExpenses);
+expenseRouter.get("/:expense_id", protect, getExpense);
+expenseRouter.patch("/:expense_id", protect, updateExpense);
+expenseRouter.delete("/:expense_id", protect, deleteExpense);
 
 export default expenseRouter;

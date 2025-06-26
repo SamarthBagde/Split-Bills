@@ -21,6 +21,13 @@ const handleSequelizeValidationErrorDB = (err) => {
   return new AppError(message, 400);
 };
 
+const handleSequelizeUniqueConstraintError = (err) => {
+  const error = Object.create(err.errors).map((e) => e.message);
+  const message = `${error.join(", ")}`;
+
+  return new AppError(message, 400);
+};
+
 export const errorHandler = (err, req, res, next) => {
   err.statusCode = err.statusCode || 500;
   err.status = err.status || "error";
@@ -28,7 +35,12 @@ export const errorHandler = (err, req, res, next) => {
   let error = err;
 
   if (error.name === "SequelizeValidationError") {
+    console.log(error);
     error = handleSequelizeValidationErrorDB(error);
+  }
+
+  if (error.name === "SequelizeUniqueConstraintError") {
+    error = handleSequelizeUniqueConstraintError(error);
   }
   sendError(error, res);
 };

@@ -11,40 +11,40 @@ import { Op } from "sequelize";
 import sequelize from "../DB/dbcConnection.js";
 
 export const addExpense = asyncHandler(async (req, res, next) => {
-  const { title, amount, paid_by, group_id } = req.body || {};
+  const { title, amount, paidBy, groupId } = req.body || {};
 
-  if (!title || !amount || !paid_by || !group_id) {
+  if (!title || !amount || !paidBy || !groupId) {
     return next(new AppError("Please provide all field", 400));
   }
 
   const transaction = await sequelize.transaction();
 
   try {
-    const user = await users.findByPk(paid_by, { transaction }); // payer
-    const group = await groups.findByPk(group_id, { transaction });
+    const user = await users.findByPk(paidBy, { transaction }); // payer
+    const group = await groups.findByPk(groupId, { transaction });
 
     if (!user) {
       await transaction.rollback();
-      return next(new AppError("No user found with provided ID", 400));
+      return next(new AppError("No user found with provided ID", 404));
     }
 
     if (!group) {
       await transaction.rollback();
-      return next(new AppError("No group found with provided ID", 400));
+      return next(new AppError("No group found with provided ID", 404));
     }
 
     const expense = await expenses.create(
-      { title, amount, paid_by, group_id },
+      { title, amount, paidBy, groupId },
       { transaction }
     );
 
     const members = await groupMembers.findAll({
-      where: { group_id },
+      where: { groupId },
       transaction,
     });
-    const membersIds = members.map((m) => m.user_id);
+    const membersIds = members.map((m) => m.userId);
 
-    if (!membersIds.includes(paid_by)) {
+    if (!membersIds.includes(paidBy)) {
       await transaction.rollback();
       return next(new AppError("Payer must be a member of the group", 400));
     }
@@ -52,11 +52,11 @@ export const addExpense = asyncHandler(async (req, res, next) => {
     const perPersonAmount = parseFloat((amount / membersIds.length).toFixed(2));
 
     const split = membersIds
-      .filter((user_id) => user_id !== paid_by)
-      .map((user_id) => ({
-        expense_id: expense.expense_id,
-        user_id: parseInt(user_id),
-        paid_to: parseInt(paid_by),
+      .filter((userId) => userId !== paidBy)
+      .map((userId) => ({
+        expenseId: expense.expenseId,
+        userId: parseInt(userId),
+        paidTo: parseInt(paidBy),
         amount: perPersonAmount,
       }));
 
@@ -71,37 +71,37 @@ export const addExpense = asyncHandler(async (req, res, next) => {
       },
     });
   } catch (error) {
-    await transaction.rollback();
-    return next(new AppError("Failed to add expense", 500));
+    await transaction.rollback(); // here you need to use try catch even if you used asyncHandler because you need to rollback if error occure
+    return next(error);
   }
 });
 
 export const getExpenses = asyncHandler(async (req, res, next) => {
   //can filter expenses by group id, paid by, min and max amount
   const {
-    group_id,
-    paid_by,
-    min_amount,
-    max_amount,
-    sort_by,
+    groupId,
+    paidBy,
+    minAmount,
+    maxAmount,
+    sortBy,
     order = "ASC",
   } = req.query;
 
   const whereClause = {};
 
-  if (group_id) whereClause.group_id = group_id;
-  if (paid_by) whereClause.paid_by = paid_by;
+  if (groupId) whereClause.groupId = groupId;
+  if (paidBy) whereClause.paidBy = paidBy;
 
-  if (min_amount || max_amount) {
+  if (minAmount || maxAmount) {
     whereClause.amount = {};
-    if (min_amount) whereClause.amount[Op.gte] = parseFloat(min_amount);
-    if (max_amount) whereClause.amount[Op.lte] = parseFloat(max_amount);
+    if (minAmount) whereClause.amount[Op.gte] = parseFloat(minAmount);
+    if (maxAmount) whereClause.amount[Op.lte] = parseFloat(maxAmount);
   }
 
   const queryObject = { where: whereClause };
 
-  if (sort_by && order) {
-    queryObject.order = [[sort_by, order.toUpperCase()]];
+  if (sortBy && order) {
+    queryObject.order = [[sortBy, order.toUpperCase()]];
   }
 
   const expensesData = await expenses.findAll(queryObject);
@@ -116,12 +116,12 @@ export const getExpenses = asyncHandler(async (req, res, next) => {
 });
 
 export const getExpense = asyncHandler(async (req, res, next) => {
-  const { expense_id } = req.params;
+  const { expenseId } = req.params;
 
-  const expense = await expenses.findByPk(expense_id);
+  const expense = await expenses.findByPk(expenseId);
 
   if (!expense) {
-    return next(new AppError("No expense found with provided ID", 400));
+    return next(new AppError("No expense found with provided ID", 404));
   }
 
   res.status(200).json({
@@ -134,7 +134,7 @@ export const getExpense = asyncHandler(async (req, res, next) => {
 
 export const updateExpense = asyncHandler(async (req, res, next) => {
   const { title, amount } = req.body || {};
-  const { expense_id } = req.params;
+  const { expenseId } = req.params;
 
   if (!title && !amount) {
     return next(new AppError("Please provide at least one field", 400));
@@ -143,10 +143,10 @@ export const updateExpense = asyncHandler(async (req, res, next) => {
   const transaction = await sequelize.transaction();
 
   try {
-    const expense = await expenses.findByPk(expense_id, { transaction });
+    const expense = await expenses.findByPk(expenseId, { transaction });
 
     if (!expense) {
-      return next(new AppError("No expense found with provided ID", 400));
+      return next(new AppError("No expense found with provided ID", 404));
     }
 
     if (title) expense.title = title;
@@ -154,16 +154,16 @@ export const updateExpense = asyncHandler(async (req, res, next) => {
 
     const updatedExpense = await expense.save({ transaction });
     if (amount) {
-      const group_id = expense.group_id;
-      const paid_by = expense.paid_by;
+      const groupId = expense.groupId;
+      const paidBy = expense.paidBy;
 
       const members = await groupMembers.findAll({
-        where: { group_id },
+        where: { groupId },
         transaction,
       });
-      const membersIds = members.map((m) => m.user_id);
+      const membersIds = members.map((m) => m.userId);
 
-      if (!membersIds.includes(paid_by)) {
+      if (!membersIds.includes(paidBy)) {
         await transaction.rollback();
         return next(new AppError("Payer must be a member of the group", 400));
       }
@@ -172,14 +172,14 @@ export const updateExpense = asyncHandler(async (req, res, next) => {
         (amount / membersIds.length).toFixed(2)
       );
 
-      await expenseSplit.destroy({ where: { expense_id }, transaction });
+      await expenseSplit.destroy({ where: { expenseId }, transaction });
 
       const split = membersIds
-        .filter((user_id) => user_id !== paid_by)
-        .map((user_id) => ({
-          expense_id: expense_id,
-          user_id: user_id,
-          paid_to: paid_by,
+        .filter((userId) => userId !== paidBy)
+        .map((userId) => ({
+          expenseId: expenseId,
+          userId: userId,
+          paidTo: paidBy,
           amount: perPersonAmount,
         }));
 
@@ -197,26 +197,26 @@ export const updateExpense = asyncHandler(async (req, res, next) => {
   } catch (error) {
     await transaction.rollback();
     console.error("Error updating expense:", error.message);
-    return next(new AppError("Failed to update expense", 500));
+    return next(error);
   }
 });
 
 export const deleteExpense = asyncHandler(async (req, res, next) => {
-  const { expense_id } = req.params;
+  const { expenseId } = req.params;
 
   const transaction = await sequelize.transaction();
 
   try {
-    const expense = await expenses.findByPk(expense_id, { transaction });
+    const expense = await expenses.findByPk(expenseId, { transaction });
 
     if (!expense) {
       await transaction.rollback();
-      return next(new AppError("No expense found with provided ID", 400));
+      return next(new AppError("No expense found with provided ID", 404));
     }
 
-    await expenseSplit.destroy({ where: { expense_id }, transaction });
+    await expenseSplit.destroy({ where: { expenseId }, transaction });
 
-    await expenses.destroy({ where: { expense_id }, transaction });
+    await expenses.destroy({ where: { expenseId }, transaction });
 
     await transaction.commit();
 
@@ -227,6 +227,6 @@ export const deleteExpense = asyncHandler(async (req, res, next) => {
   } catch (error) {
     await transaction.rollback();
     console.log("Error deleting expense : ", error.message);
-    return next(new AppError("Failed to delete expense", 500));
+    return next(error);
   }
 });

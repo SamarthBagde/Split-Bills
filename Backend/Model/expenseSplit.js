@@ -4,26 +4,26 @@ import sequelize from "../DB/dbcConnection.js";
 const expenseSplit = sequelize.define(
   "expenseSplits",
   {
-    id: {
+    expenseSplitId: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
     },
-    expense_id: {
+    expenseId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       validate: {
         isInt: true,
       },
     },
-    user_id: {
+    userId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       validate: {
         isInt: true,
       },
     }, // who owes
-    paid_to: {
+    paidTo: {
       type: DataTypes.INTEGER,
       allowNull: false,
       validate: {

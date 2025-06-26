@@ -10,31 +10,31 @@ import {
 import { AppError } from "../Utils/appError.js";
 
 export const createGroup = asyncHandler(async (req, res, next) => {
-  const { name, user_id } = req.body;
+  const { name, userId } = req.body;
 
   if (!name) {
     return next(new AppError("Please provide all field", 400));
   }
 
-  const user = await users.findByPk(user_id);
+  const user = await users.findByPk(userId);
 
   if (!user) {
-    return next(new AppError("No user found with the provided ID", 400));
+    return next(new AppError("No user found with provided ID", 404));
   }
 
   const group = await groups.create({ name });
 
-  const group_id = group.group_id;
+  const groupId = group.groupId;
 
-  if (!group_id) {
+  if (!groupId) {
     return next(
       new AppError("Group id is not found or group is not created", 400)
     );
   }
 
   const groupMember = await groupMembers.create({
-    group_id: group_id,
-    user_id: user_id,
+    groupId: groupId,
+    userId: userId,
   });
 
   res.status(200).json({
@@ -46,30 +46,30 @@ export const createGroup = asyncHandler(async (req, res, next) => {
 });
 
 export const addUserToGroup = asyncHandler(async (req, res, next) => {
-  const { user_id } = req.body || {};
-  const { group_id } = req.params;
+  const { userId } = req.body || {};
+  const { groupId } = req.params;
 
-  if (!user_id) {
+  if (!userId) {
     return next(new AppError("Please provide user ID", 400));
   }
-  if (!group_id) {
+  if (!groupId) {
     return next(new AppError("Please provide group ID", 400));
   }
 
-  const group = await groups.findByPk(group_id);
-  const user = await users.findByPk(user_id);
+  const group = await groups.findByPk(groupId);
+  const user = await users.findByPk(userId);
 
   if (!group) {
-    return next(new AppError("No group found with the provided ID", 400));
+    return next(new AppError("No group found with provided ID", 404));
   }
 
   if (!user) {
-    return next(new AppError("No user found with the provided ID", 400));
+    return next(new AppError("No user found with provided ID", 404));
   }
 
   const data = await groupMembers.create({
-    group_id: group_id,
-    user_id: user_id,
+    groupId: groupId,
+    userId: userId,
   });
 
   res.status(200).json({
@@ -93,15 +93,15 @@ export const getGroups = asyncHandler(async (req, res, next) => {
 });
 
 export const getMemebersOfGroup = asyncHandler(async (req, res, next) => {
-  const { group_id } = req.params;
+  const { groupId } = req.params;
 
-  const group = await groups.findByPk(group_id);
+  const group = await groups.findByPk(groupId);
 
   if (!group) {
-    return next(new AppError("No group found with the provided ID", 400));
+    return next(new AppError("No group found with provided ID", 404));
   }
 
-  const members = await groupMembers.findAll({ where: { group_id } });
+  const members = await groupMembers.findAll({ where: { groupId } });
 
   res.status(200).json({
     status: "success",
@@ -113,15 +113,15 @@ export const getMemebersOfGroup = asyncHandler(async (req, res, next) => {
 });
 
 export const getExpensesOfGroup = asyncHandler(async (req, res, next) => {
-  const { group_id } = req.params;
+  const { groupId } = req.params;
 
-  const group = await groups.findByPk(group_id);
+  const group = await groups.findByPk(groupId);
 
   if (!group) {
-    return next(new AppError("No group found with the provided ID", 400));
+    return next(new AppError("No group found with provided ID", 404));
   }
 
-  const groupExpenses = await expenses.findAll({ where: { group_id } });
+  const groupExpenses = await expenses.findAll({ where: { groupId } });
 
   res.status(200).json({
     status: "success",
@@ -133,33 +133,33 @@ export const getExpensesOfGroup = asyncHandler(async (req, res, next) => {
 });
 
 export const deleteGroup = asyncHandler(async (req, res, next) => {
-  const { group_id } = req.params;
+  const { groupId } = req.params;
 
   const transaction = await sequelize.transaction();
 
   try {
-    const group = await groups.findByPk(group_id, { transaction });
+    const group = await groups.findByPk(groupId, { transaction });
     if (!group) {
       await transaction.rollback();
-      return next(new AppError("No group found with provided ID", 400));
+      return next(new AppError("No group found with provided ID", 404));
     }
 
-    await groupMembers.destroy({ where: { group_id }, transaction });
+    await groupMembers.destroy({ where: { groupId }, transaction });
 
     const expensesData = await expenses.findAll({
-      where: { group_id },
+      where: { groupId },
       transaction,
     });
-    const expensesIds = expensesData.map((e) => e.expense_id);
+    const expensesIds = expensesData.map((e) => e.expenseId);
 
     if (expensesIds.length > 0) {
       await expenseSplit.destroy({
-        where: { expense_id: expensesIds },
+        where: { expenseId: expensesIds },
         transaction,
       });
     }
 
-    await expenses.destroy({ where: { group_id }, transaction });
+    await expenses.destroy({ where: { groupId }, transaction });
 
     await group.destroy({ transaction }); // directly deleteing instance
 
@@ -172,6 +172,6 @@ export const deleteGroup = asyncHandler(async (req, res, next) => {
   } catch (error) {
     await transaction.rollback();
     console.error("Error deleting group:", error.message);
-    return next(new AppError("Failed to delete group", 500));
+    return next(error);
   }
 });

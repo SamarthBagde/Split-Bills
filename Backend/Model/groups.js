@@ -4,7 +4,7 @@ import sequelize from "../DB/dbcConnection.js";
 const groups = sequelize.define(
   "groups",
   {
-    group_id: {
+    groupId: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
@@ -15,7 +15,10 @@ const groups = sequelize.define(
       allowNull: false,
       validate: {
         notEmpty: true,
-        len: [3, 20],
+        len: {
+          args: [3, 20],
+          msg: "Group name must be between 3 and 20 characters",
+        },
       },
     },
   },

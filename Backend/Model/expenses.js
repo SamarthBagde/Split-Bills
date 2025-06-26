@@ -4,7 +4,7 @@ import sequelize from "../DB/dbcConnection.js";
 const expenses = sequelize.define(
   "expenses",
   {
-    expense_id: {
+    expenseId: {
       type: DataTypes.INTEGER,
       autoIncrement: true,
       primaryKey: true,
@@ -14,7 +14,10 @@ const expenses = sequelize.define(
       allowNull: false,
       validate: {
         notEmpty: true,
-        len: [3, 20],
+        len: {
+          args: [3, 20],
+          msg: "Expense title must be between 3 and 20 characters",
+        },
       },
     },
     amount: {
@@ -25,7 +28,7 @@ const expenses = sequelize.define(
         min: 0.01,
       },
     },
-    paid_by: {
+    paidBy: {
       type: DataTypes.INTEGER,
       allowNull: false,
       validate: {
@@ -37,7 +40,7 @@ const expenses = sequelize.define(
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
     },
-    group_id: {
+    groupId: {
       type: DataTypes.INTEGER,
       allowNull: false,
       validate: {
