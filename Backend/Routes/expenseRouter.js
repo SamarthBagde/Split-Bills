@@ -2,6 +2,7 @@ import express from "express";
 import {
   addExpense,
   deleteExpense,
+  expSplit,
   getExpense,
   getExpenses,
   updateExpense,
@@ -12,8 +13,9 @@ const expenseRouter = express.Router();
 
 expenseRouter.post("/", protect, addExpense);
 expenseRouter.get("/", protect, getExpenses);
-expenseRouter.get("/:expense_id", protect, getExpense);
-expenseRouter.patch("/:expense_id", protect, updateExpense);
-expenseRouter.delete("/:expense_id", protect, deleteExpense);
+expenseRouter.get("/:expenseId", protect, getExpense);
+expenseRouter.get("/:expenseId/split", protect, expSplit);
+expenseRouter.patch("/:expenseId", protect, updateExpense);
+expenseRouter.delete("/:expenseId", protect, deleteExpense);
 
 export default expenseRouter;

@@ -51,14 +51,26 @@ export const addExpense = asyncHandler(async (req, res, next) => {
 
     const perPersonAmount = parseFloat((amount / membersIds.length).toFixed(2));
 
-    const split = membersIds
-      .filter((userId) => userId !== paidBy)
-      .map((userId) => ({
+    const rem = parseFloat(
+      (amount - perPersonAmount * membersIds.length).toFixed(2)
+    );
+    let remPaisa = Math.round(rem * 100);
+
+    const split = membersIds.map((userId) => {
+      let extra = 0;
+
+      if (remPaisa > 0) {
+        extra = 0.1;
+        remPaisa--;
+      }
+
+      return {
         expenseId: expense.expenseId,
         userId: parseInt(userId),
         paidTo: parseInt(paidBy),
-        amount: perPersonAmount,
-      }));
+        amount: parseFloat((perPersonAmount + extra).toFixed(2)),
+      };
+    });
 
     await expenseSplit.bulkCreate(split, { transaction });
 
@@ -203,6 +215,7 @@ export const updateExpense = asyncHandler(async (req, res, next) => {
 
 export const deleteExpense = asyncHandler(async (req, res, next) => {
   const { expenseId } = req.params;
+  const user = req.user;
 
   const transaction = await sequelize.transaction();
 
@@ -212,6 +225,16 @@ export const deleteExpense = asyncHandler(async (req, res, next) => {
     if (!expense) {
       await transaction.rollback();
       return next(new AppError("No expense found with provided ID", 404));
+    }
+
+    if (user.userId !== expense.paidBy) {
+      await transaction.rollback();
+      return next(
+        new AppError(
+          "You are not authorized to delete this expense as you are not the payer",
+          403
+        )
+      );
     }
 
     await expenseSplit.destroy({ where: { expenseId }, transaction });
@@ -229,4 +252,37 @@ export const deleteExpense = asyncHandler(async (req, res, next) => {
     console.log("Error deleting expense : ", error.message);
     return next(error);
   }
+});
+
+export const expSplit = asyncHandler(async (req, res, next) => {
+  const { expenseId } = req.params;
+
+  // Validate expense ID format
+  if (!expenseId) {
+    return next(new AppError("Invalid expense ID format", 400));
+  }
+
+  // Fetch the expense
+  const expense = await expenses.findByPk(expenseId);
+  if (!expense) {
+    return next(new AppError("No expense found with the provided ID", 404));
+  }
+
+  // Fetch associated splits
+  const splitDetails = await expenseSplit.findAll({
+    where: { expenseId },
+    attributes: { exclude: ["expenseSplitId", "expenseId"] },
+  });
+
+  res.status(200).json({
+    status: "success",
+    data: {
+      expense: {
+        title: expense.title,
+        amount: expense.amount,
+        paidBy: expense.paidBy,
+      },
+      split: splitDetails,
+    },
+  });
 });
